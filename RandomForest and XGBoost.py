@@ -119,6 +119,8 @@ from sklearn.neighbors import KNeighborsRegressor
 #os.makedirs("/content/drive/MyDrive/teaching_fall_2021/ml_fall_2021/HW_Assignments/HW6/saved_models")
 #!ls
 
+
+
 from google.colab import drive
 drive.mount('/content/drive')
 
@@ -249,30 +251,40 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
 
     return plt
 
+print(x.dtypes)
+
 # Create a list of categorical variables
 # Since the dtype of categorical variable is Object we can compare the values with 'O' 
-categorical = [var for var in x.columns if x[var].dtype.name == 'category']
+categorical = [var for var in x.columns if x[var].dtype.name == 'object']
 
 # Create a list of discrete variables
 # we do not want to consider Exited as this is target variable
 discrete = [
-    var for var in x.columns if x[var].dtype.name != 'category'
+    var for var in x.columns if x[var].dtype.name != 'object'
     and len(x[var].unique()) < 20
 ]
 
 # Create a list of continuous Variables
 continuous = [
-    var for var in x.columns if x[var].dtype.name != 'category'
+    var for var in x.columns if x[var].dtype.name != 'object'
     if var not in discrete
 ]
+
+print(categorical)
+print(discrete)
 
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4, random_state=123,stratify =x[['Functioning Day','Holiday']])
 x_train.head()
 
+#ohe = OneHotEncoder(variables=categorical,drop_last = True,ignore_format= True)
+#x_train = ohe.fit_transform(x_train)
+print(x_train)
+
 bikepipeline = Pipeline([
             #('rare labels', RareLabelEncoder(tol=.05,n_categories =2,variables = ['Holiday','Functioning Day'])),
-            ('ohe',OneHotEncoder(variables=categorical,drop_last=True)),
             #('log_transform',LogTransformer(variables=continuous)), 
+            ('one_hot_encoder', OneHotEncoder(variables=categorical
+                   ,drop_last= True, ignore_format=True)),
             ('scalar', SklearnTransformerWrapper(StandardScaler(), variables = continuous)),
             ('knn_reg',KNeighborsRegressor())       
 ])
@@ -326,6 +338,7 @@ from feature_engine.encoding import DecisionTreeEncoder
 from sklearn.tree import DecisionTreeClassifier
 
 X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.4, random_state=123, stratify =x[['Functioning Day','Holiday']])
+print(X_train)
 
 churn_pipeline_dtree = Pipeline([
     ('one_hot_encoder',
@@ -426,10 +439,11 @@ churn_pipeline = Pipeline([
 ('one_hot_encoder',
       OneHotEncoder(variables=categorical,drop_last=True))])
 
-X_train=X_train.drop(['Seasons','Holiday','Functioning Day'], axis=1)
-X_test = X_test.drop(['Seasons','Holiday','Functioning Day'], axis=1)
+X_train=OneHotEncoder(variables=categorical, drop_last=True).fit_transform(X_train) 
+X_test = OneHotEncoder(variables=categorical, drop_last=True).fit_transform(X_test)
 
 from  xgboost import XGBRegressor
+
 xgbc= XGBRegressor(random_state=123,early_stopping_rounds=2)
 xgbc_param = {
               'max_depth' : [6],
@@ -444,7 +458,7 @@ xgbc_grid.fit(X_train,y_train)
 print(f'Best Mean Cross Validation Score is {xgbc_grid.best_score_}')
 print(f'Best Mean Cross Validation Score is {xgbc_grid.best_params_}')
 print(f'Train score is {xgbc_grid.score(X_train,y_train)}')
-print(f'Test score is {xgbc_grid.score(X_test,y_test)}')
+#print(f'Test score is {xgbc_grid.score(X_test,y_test)}')
 #print(f'Val score is {xgbc_grid.score(X_val,y_val)}')
 
 file_params_roundxg = save_model_folder / 'xg_params.pkl'
@@ -477,7 +491,8 @@ from sklearn.ensemble import RandomForestRegressor
 
 model= Pipeline([
   
- ('rf',
+ 
+     ('rf',
        RandomForestRegressor(warm_start=True, random_state=0, oob_score=True))])
 param_grid = {
     
